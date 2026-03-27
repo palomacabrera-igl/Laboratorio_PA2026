@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <set>
-#include <map>   5
-#include <utility>
+#include <map>
+#include <string>
 #include "DTFecha.h"
 #include "ArticuloRevista.h"
 #include "Libro.h"
@@ -88,8 +88,6 @@ int main() {
 
     // ==================== PASO g ====================
     // Registrar relaciones (bidireccional)
-    // Nota: la consigna lista pares Investigador-Publicacion
-    // Creamos un mapa de DOI a publicación para facilitar búsqueda
     map<string, Publicacion*> mapaPublicaciones;
     for (auto* pub : publicaciones) {
         mapaPublicaciones[pub->getDOI()] = pub;
@@ -117,7 +115,7 @@ int main() {
     }
 
     // ==================== PASO h ====================
-    // Invocar listarPublicaciones para Carla Oliveri (inv1) con fecha 10/12/2023 y palabra "UML"
+    // Invocar listarPublicaciones para Carla Oliveri con fecha 10/12/2023 y palabra "UML"
     cout << "\n=== Paso h ===" << endl;
     DTFecha desde_h(10, 12, 2023);
     set<string> resultados_h = inv1->listarPublicaciones(desde_h, "UML");
@@ -127,26 +125,23 @@ int main() {
 
     // ==================== PASO i ====================
     // Eliminar el objeto con DOI "10.4567/jkl012" (art2)
-    // La letra dice "ejecutar la eliminación del objeto ... de la clase Publication"
-    // Eliminamos de la memoria y también de las relaciones
     Publicacion* aEliminar = mapaPublicaciones["10.4567/jkl012"];
     if (aEliminar) {
-        // Primero, para cada autor de esta publicación, eliminar la publicación de su set
-        // Hacemos copia de autores porque vamos a modificar el set mientras iteramos
+        // Primero, quitar la publicación de los autores
         set<Investigador*> autoresCopy = aEliminar->getAutores();
         for (auto* autor : autoresCopy) {
             autor->quitarPublicacion(aEliminar);
         }
-        // Luego eliminamos la publicación
+        // Luego eliminar la publicación
         delete aEliminar;
-        // También debemos quitarlo del vector de publicaciones para no usarlo después
+        // Quitar del vector de publicaciones
         for (auto it = publicaciones.begin(); it != publicaciones.end(); ++it) {
             if (*it == aEliminar) {
                 publicaciones.erase(it);
                 break;
             }
         }
-        // Opcional: también borrar del mapa
+        // Quitar del mapa
         mapaPublicaciones.erase("10.4567/jkl012");
     }
 
@@ -167,7 +162,7 @@ int main() {
     }
 
     // ==================== LIMPIEZA ====================
-    // Eliminar objetos dinámicos restantes
+    // Eliminar objetos restantes
     for (auto* pub : publicaciones) {
         delete pub;
     }
