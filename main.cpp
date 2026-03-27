@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <set>
-#include <map>   5
+#include <map>   
 #include <utility>
 #include "DTFecha.h"
 #include "ArticuloRevista.h"
