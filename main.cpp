@@ -1,20 +1,136 @@
 #include <iostream>
 #include <vector>
 #include <set>
-#include <map>   
-#include <utility>
+#include <map>
+#include <string>
 #include "DTFecha.h"
 #include "ArticuloRevista.h"
 #include "Libro.h"
 #include "PaginaWeb.h"
 #include "Investigador.h"
 
-
 using namespace std;
 
+// Variables globales para acceder desde el menú
+vector<Publicacion*> publicaciones;
+map<string, Publicacion*> mapaPublicaciones;
+Investigador* inv1 = nullptr;
+Investigador* inv2 = nullptr;
+
+// Función para mostrar el menú
+void mostrarMenu() {
+    cout << "\n=== MENU DE PRUEBAS ===" << endl;
+    cout << "1. Listar todas las publicaciones (getDT)" << endl;
+    cout << "2. Listar todos los investigadores (toString)" << endl;
+    cout << "3. Establecer relaciones" << endl;
+    cout << "4. Listar publicaciones de Carla Oliveri (fecha > 10/12/2023, contiene 'UML')" << endl;
+    cout << "5. Eliminar publicacion con DOI '10.4567/jkl012'" << endl;
+    cout << "6. Listar publicaciones de Carla Oliveri (fecha > 1/1/2020, contiene 'UML')" << endl;
+    cout << "7. Listar publicaciones de Alberto Santos (fecha > 1/1/2020, contiene 'UML')" << endl;
+    cout << "8. Salir" << endl;
+    cout << "Opcion: ";
+}
+
+// Función para listar todas las publicaciones
+void listarPublicaciones() {
+    cout << "\n=== PUBLICACIONES ===" << endl;
+    for (auto* pub : publicaciones) {
+        cout << pub->getDT() << endl;
+    }
+}
+
+// Función para listar investigadores
+void listarInvestigadores() {
+    cout << "\n=== INVESTIGADORES ===" << endl;
+    if (inv1) cout << inv1->toString() << endl;
+    if (inv2) cout << inv2->toString() << endl;
+}
+
+// Función para establecer relaciones
+void establecerRelaciones() {
+    for (auto* pub : publicaciones) {
+        set<Investigador*> autoresCopy = pub->getAutores();
+        for (auto* autor : autoresCopy) {
+            pub->quitarAutor(autor);
+            autor->quitarPublicacion(pub);
+        }
+    }
+
+    // Lista de relaciones (ORCID, DOI)
+    vector<pair<string, string>> relaciones = {
+        {"0000-0003-1234-5678", "10.1234/abc123"},
+        {"0000-0003-1234-5678", "10.4567/jkl012"},
+        {"0000-0003-1234-5678", "10.5678/mno345"},
+        {"0000-0003-1234-5678", "10.3456/ghi789"},
+        {"0000-0001-8765-4321", "10.1234/abc123"},
+        {"0000-0001-8765-4321", "10.2345/def456"},
+        {"0000-0001-8765-4321", "10.4567/jkl012"}
+    };
+
+    for (const auto& rel : relaciones) {
+        Investigador* inv = (rel.first == inv1->getORCID()) ? inv1 : inv2;
+        Publicacion* pub = mapaPublicaciones[rel.second];
+        if (inv && pub) {
+            inv->agregarPublicacion(pub);
+            pub->agregarAutor(inv);
+        }
+    }
+    cout << "\nRelaciones establecidas correctamente." << endl;
+}
+
+// Función para listar publicaciones de un investigador con filtro
+void listarPublicacionesDe(Investigador* inv, const DTFecha& desde, const string& palabra, const string& nombreInv) {
+    if (!inv) {
+        cout << "Investigador no existe." << endl;
+        return;
+    }
+    set<string> resultados = inv->listarPublicaciones(desde, palabra);
+    cout << "\n=== Publicaciones de " << nombreInv << " (fecha > "
+         << desde.getDia() << "/" << desde.getMes() << "/" << desde.getAnio()
+         << ", contiene '" << palabra << "') ===" << endl;
+    if (resultados.empty()) {
+        cout << "Ninguna publicacion cumple los criterios." << endl;
+    } else {
+        for (const auto& doi : resultados) {
+            cout << doi << endl;
+        }
+    }
+}
+
+// Función para eliminar una publicación por DOI
+void eliminarPublicacion(const string& doi) {
+    auto it = mapaPublicaciones.find(doi);
+    if (it == mapaPublicaciones.end()) {
+        cout << "No se encontro publicacion con DOI: " << doi << endl;
+        return;
+    }
+
+    Publicacion* pub = it->second;
+
+    // Quitar la publicación de los autores
+    set<Investigador*> autoresCopy = pub->getAutores();
+    for (auto* autor : autoresCopy) {
+        autor->quitarPublicacion(pub);
+    }
+
+    // Quitar del vector de publicaciones
+    for (auto itVec = publicaciones.begin(); itVec != publicaciones.end(); ++itVec) {
+        if (*itVec == pub) {
+            publicaciones.erase(itVec);
+            break;
+        }
+    }
+
+    // Eliminar del mapa y liberar memoria
+    mapaPublicaciones.erase(doi);
+    delete pub;
+
+    cout << "Publicacion con DOI " << doi << " eliminada correctamente." << endl;
+}
+
 int main() {
-    // ==================== PASO a ====================
-    // Crear artículos de revista
+    // ==================== CREACION DE OBJETOS ====================
+    // Artículos de revista
     ArticuloRevista* art1 = new ArticuloRevista(
         "10.1234/abc123",
         "Fundamentos de POO",
@@ -31,8 +147,7 @@ int main() {
         "Ejercicio empirico de como los diagramas UML pueden ayudar en el proceso y documentacion de software, cubriendo los tipos mas importantes utilizados, como clases."
     );
 
-    // ==================== PASO b ====================
-    // Crear libros
+    // Libros
     set<string> palabrasLibro1 = {"Diseno", "OOP", "Class"};
     Libro* libro1 = new Libro(
         "10.2345/def456",
@@ -51,8 +166,7 @@ int main() {
         palabrasLibro2
     );
 
-    // ==================== PASO c ====================
-    // Crear páginas web
+    // Página web
     PaginaWeb* web1 = new PaginaWeb(
         "10.3456/ghi789",
         "Diagramas para Principiantes",
@@ -61,114 +175,59 @@ int main() {
         "En esta pagina web se presenta una guia completa sobre los diagramas UML, abordando los diagramas de casos de uso, de clases, de secuencia y de actividades."
     );
 
-    // Agrupar todas las publicaciones en un vector para facilitar manejo
-    vector<Publicacion*> publicaciones;
+    // Agregar a la lista global
     publicaciones.push_back(art1);
     publicaciones.push_back(art2);
     publicaciones.push_back(libro1);
     publicaciones.push_back(libro2);
     publicaciones.push_back(web1);
 
-    // ==================== PASO d ====================
-    // Imprimir getDT() de cada publicación
-    cout << "=== Paso d ===" << endl;
-    for (auto* pub : publicaciones) {
-        cout << pub->getDT() << endl;
-    }
-
-    // ==================== PASO e ====================
-    // Crear investigadores
-    Investigador* inv1 = new Investigador("0000-0003-1234-5678", "Carla Oliveri", "Universidad de la Republica");
-    Investigador* inv2 = new Investigador("0000-0001-8765-4321", "Alberto Santos", "Instituto Tecnico");
-
-    // ==================== PASO f ====================
-    // Imprimir toString de cada investigador
-    cout << "\n=== Paso f ===" << endl;
-    cout << inv1->toString() << endl;
-    cout << inv2->toString() << endl;
-
-    // ==================== PASO g ====================
-    // Registrar relaciones (bidireccional)
-    // Nota: la consigna lista pares Investigador-Publicacion
-    // Creamos un mapa de DOI a publicación para facilitar búsqueda
-    map<string, Publicacion*> mapaPublicaciones;
+    // Mapa para búsqueda rápida por DOI
     for (auto* pub : publicaciones) {
         mapaPublicaciones[pub->getDOI()] = pub;
     }
 
-    // Lista de relaciones: (ORCID, DOI)
-    vector<pair<string, string>> relaciones = {
-        {"0000-0003-1234-5678", "10.1234/abc123"},
-        {"0000-0003-1234-5678", "10.4567/jkl012"},
-        {"0000-0003-1234-5678", "10.5678/mno345"},
-        {"0000-0003-1234-5678", "10.3456/ghi789"},
-        {"0000-0001-8765-4321", "10.1234/abc123"},
-        {"0000-0001-8765-4321", "10.2345/def456"},
-        {"0000-0001-8765-4321", "10.4567/jkl012"}
-    };
+    // Crear investigadores
+    inv1 = new Investigador("0000-0003-1234-5678", "Carla Oliveri", "Universidad de la Republica");
+    inv2 = new Investigador("0000-0001-8765-4321", "Alberto Santos", "Instituto Tecnico");
 
-    // Asociar
-    for (const auto& rel : relaciones) {
-        Investigador* inv = (rel.first == inv1->getORCID()) ? inv1 : inv2;
-        Publicacion* pub = mapaPublicaciones[rel.second];
-        if (inv && pub) {
-            inv->agregarPublicacion(pub);
-            pub->agregarAutor(inv);
-        }
-    }
+    // ==================== MENU INTERACTIVO ====================
+    int opcion;
+    do {
+        mostrarMenu();
+        cin >> opcion;
 
-    // ==================== PASO h ====================
-    // Invocar listarPublicaciones para Carla Oliveri (inv1) con fecha 10/12/2023 y palabra "UML"
-    cout << "\n=== Paso h ===" << endl;
-    DTFecha desde_h(10, 12, 2023);
-    set<string> resultados_h = inv1->listarPublicaciones(desde_h, "UML");
-    for (const auto& doi : resultados_h) {
-        cout << doi << endl;
-    }
-
-    // ==================== PASO i ====================
-    // Eliminar el objeto con DOI "10.4567/jkl012" (art2)
-    // La letra dice "ejecutar la eliminación del objeto ... de la clase Publication"
-    // Eliminamos de la memoria y también de las relaciones
-    Publicacion* aEliminar = mapaPublicaciones["10.4567/jkl012"];
-    if (aEliminar) {
-        // Primero, para cada autor de esta publicación, eliminar la publicación de su set
-        // Hacemos copia de autores porque vamos a modificar el set mientras iteramos
-        set<Investigador*> autoresCopy = aEliminar->getAutores();
-        for (auto* autor : autoresCopy) {
-            autor->quitarPublicacion(aEliminar);
-        }
-        // Luego eliminamos la publicación
-        delete aEliminar;
-        // También debemos quitarlo del vector de publicaciones para no usarlo después
-        for (auto it = publicaciones.begin(); it != publicaciones.end(); ++it) {
-            if (*it == aEliminar) {
-                publicaciones.erase(it);
+        switch (opcion) {
+            case 1:
+                listarPublicaciones();
                 break;
-            }
+            case 2:
+                listarInvestigadores();
+                break;
+            case 3:
+                establecerRelaciones();
+                break;
+            case 4:
+                listarPublicacionesDe(inv1, DTFecha(10, 12, 2023), "UML", "Carla Oliveri");
+                break;
+            case 5:
+                eliminarPublicacion("10.4567/jkl012");
+                break;
+            case 6:
+                listarPublicacionesDe(inv1, DTFecha(1, 1, 2020), "UML", "Carla Oliveri");
+                break;
+            case 7:
+                listarPublicacionesDe(inv2, DTFecha(1, 1, 2020), "UML", "Alberto Santos");
+                break;
+            case 8:
+                cout << "Saliendo... liberando memoria." << endl;
+                break;
+            default:
+                cout << "Opcion invalida. Intente de nuevo." << endl;
         }
-        // Opcional: también borrar del mapa
-        mapaPublicaciones.erase("10.4567/jkl012");
-    }
-
-    // ==================== PASO j ====================
-    // Invocar listarPublicaciones para Carla Oliveri con fecha 1/1/2020 y palabra "UML"
-    cout << "\n=== Paso j ===" << endl;
-    DTFecha desde_j(1, 1, 2020);
-    set<string> resultados_j = inv1->listarPublicaciones(desde_j, "UML");
-    for (const auto& doi : resultados_j) {
-        cout << doi << endl;
-    }
-
-    // ==================== PASO k ====================
-    // Imprimir getDT() de cada publicación (las que quedan)
-    cout << "\n=== Paso k ===" << endl;
-    for (auto* pub : publicaciones) {
-        cout << pub->getDT() << endl;
-    }
+    } while (opcion != 8);
 
     // ==================== LIMPIEZA ====================
-    // Eliminar objetos dinámicos restantes
     for (auto* pub : publicaciones) {
         delete pub;
     }

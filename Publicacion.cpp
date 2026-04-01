@@ -1,5 +1,5 @@
 #include "Publicacion.h"
-#include "Investigador.h" // ahora sí podemos usar Investigador completamente
+#include "Investigador.h"
 
 Publicacion::Publicacion(const std::string& DOI, const std::string& titulo, const DTFecha& fecha)
     : DOI(DOI), titulo(titulo), fecha(fecha) {}
